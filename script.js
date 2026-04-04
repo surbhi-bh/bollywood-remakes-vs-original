@@ -20,7 +20,6 @@ const raw = [
   ["Ala Vaikunthapurramuloo","Shehzada",7.3,4.5,289.2,37,2020,2023],
   ["Driving License","Selfiee",7.2,5.7,33.6,17,2019,2023],
   ["Jersey","Jersey",8.5,7.3,36.9,24.4,2019,2022],
-  ["The Great Indian Kitchen","Mrs",8.1,6.7,null,null,2021,2023],
   ["Vikram Vedha","Vikram Vedha",8.2,7.1,72.8,78,2017,2022],
   ["Drishyam 2","Drishyam 2",8.4,8.2,null,233.5,2021,2022],
   ["HIT: The First Case","HIT: The First Case",7.6,6.8,7.0,11.3,2020,2022],
@@ -62,7 +61,6 @@ const POSTER_IMGS = {
   "Ala Vaikunthapurramuloo":    { origUrl:P+"alavaikunthapurramuloo.jpg", remakeUrl:P+"shehzada.jpg" },
   "Driving License":            { origUrl:P+"drivinglicense.jpg",         remakeUrl:P+"selfiee.jpg" },
   "Jersey":                     { origUrl:P+"jersey-original.jpg",        remakeUrl:P+"jersey-remake.jpg" },
-  "The Great Indian Kitchen":   { origUrl:P+"greatindiankitchen.jpg",     remakeUrl:P+"mrs.jpg" },
   "Vikram Vedha":               { origUrl:P+"vikramvedha-original.jpg",   remakeUrl:P+"vikramvedha-remake.jpg" },
   "Drishyam 2":                 { origUrl:P+"drishyam2-original.jpg",     remakeUrl:P+"drishyam2-remake.jpg" },
   "HIT: The First Case":        { origUrl:P+"hit-original.jpg",           remakeUrl:P+"hit-remake.jpg" },
@@ -212,20 +210,24 @@ function updatePanel(orig) {
   const rrChip = document.getElementById("chip-rating-remake");
   roChip.textContent = d.ro!=null ? d.ro.toFixed(1) : "—";
   rrChip.textContent = d.rr!=null ? d.rr.toFixed(1) : "—";
-  // orig gets green highlight if it's HIGHER than remake
-  roChip.className = "chip-val" + (d.ro!=null && d.rr!=null && d.ro>d.rr ? " highlight-green" : "");
-  rrChip.className = "chip-val" + (d.rr!=null && d.ro!=null && d.rr>d.ro ? " highlight-green" : "");
+  if (d.ro!=null && d.rr!=null) {
+    roChip.className = "chip-val" + (d.ro>d.rr ? " highlight-green" : d.ro<d.rr ? " highlight-red" : "");
+    rrChip.className = "chip-val" + (d.rr>d.ro ? " highlight-green" : d.rr<d.ro ? " highlight-red" : "");
+  } else {
+    roChip.className = "chip-val";
+    rrChip.className = "chip-val";
+  }
 
   // Chip: Box office — special OTT label for certain films
-  const OTT_ORIG   = ["Drishyam 2","The Great Indian Kitchen"];
+  const OTT_ORIG   = ["Drishyam 2"];
   const ooChip = document.getElementById("chip-rev-orig");
   const orChip = document.getElementById("chip-rev-remake");
   ooChip.textContent = OTT_ORIG.includes(d.orig) ? "Released on OTT"
-                     : d.origRev!=null ? d.origRev.toFixed(0) : "—";
-  orChip.textContent = d.remakeRev!=null ? d.remakeRev.toFixed(0) : "—";
+                     : d.origRev!=null ? "Rs. " + d.origRev.toFixed(0) + " Cr" : "—";
+  orChip.textContent = d.remakeRev!=null ? "Rs. " + d.remakeRev.toFixed(0) + " Cr" : "—";
   if (d.origRev!=null && d.remakeRev!=null) {
-    ooChip.className = "chip-val" + (d.origRev>d.remakeRev ? " highlight-green" : "");
-    orChip.className = "chip-val" + (d.remakeRev>d.origRev ? " highlight-green" : "");
+    ooChip.className = "chip-val" + (d.origRev>d.remakeRev ? " highlight-green" : d.origRev<d.remakeRev ? " highlight-red" : "");
+    orChip.className = "chip-val" + (d.remakeRev>d.origRev ? " highlight-green" : d.remakeRev<d.origRev ? " highlight-red" : "");
   } else {
     ooChip.className = "chip-val";
     orChip.className = "chip-val";
@@ -294,7 +296,13 @@ function drawFilmStrip(svg, x, yTop, height, width) {
 
 // ── BUILD CHART ───────────────────────────────────────────────
 function buildChart(svgId, dataset, getL, getR, unitFmt) {
-  const availH = window.innerHeight - 140;
+  const header = document.querySelector(".right-header");
+  const footer = document.querySelector(".footer");
+  const rightSide = document.querySelector(".right-side");
+  const rs = getComputedStyle(rightSide);
+  const vPad = parseFloat(rs.paddingTop) + parseFloat(rs.paddingBottom);
+  const usedH = (header ? header.offsetHeight : 0) + (footer ? footer.offsetHeight : 0) + vPad + 8 + 8;
+  const availH = window.innerHeight - usedH;
   const PAD_T=46, PAD_B=20, PAD_SIDE=6;
   const axisH = availH - PAD_T - PAD_B;
 
@@ -308,7 +316,8 @@ function buildChart(svgId, dataset, getL, getR, unitFmt) {
   // yR maps a data value → SVG y coordinate (higher value = lower y number = higher on screen)
   function yR(v) { return PAD_T + (1-(v-domMin)/range)*axisH; }
 
-  const STRIP_W=28, LBL_W=160, GAP=220;
+  const availW = (window.innerWidth - 260 - 36) / 2;  // half of right side minus left panel and padding
+  const STRIP_W=28, LBL_W=Math.max(110, Math.round(availW*0.28)), GAP=Math.max(140, Math.round(availW*0.36));
   const xLS=PAD_SIDE+LBL_W, xSL=xLS+STRIP_W, xSR=xSL+GAP, xRS=xSR;
   const W=xRS+STRIP_W+LBL_W+PAD_SIDE, H=PAD_T+axisH+PAD_B;
   const PILL_W=26, PILL_H=11;
